@@ -1,0 +1,18 @@
+{
+  "name": "@shift/api",
+  "private": true,
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build ./src/index.ts --target=bun --outdir=dist --packages=external",
+    "start": "bun dist/index.js"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.9.1",
+    "@shift/db": "workspace:*",
+    "@shift/shared": "workspace:*",
+    "@socket.io/bun-engine": "^0.1.2",
+    "hono": "^4.13.19",
+    "socket.io": "^4.8.4",
+    "zod": "^4.6.7"
+  }
+}

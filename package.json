@@ -1,0 +1,12 @@
+{
+  "name": "mini-crm",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --parallel --filter '*' dev",
+    "build": "bun run --filter @shift/web build && bun run --filter @shift/api build"
+  }
+}
