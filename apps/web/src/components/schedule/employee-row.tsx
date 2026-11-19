@@ -9,7 +9,6 @@ type Props={employee:Employee;index:number;days:Date[];gridColumns:string;select
 export function EmployeeRow(p:Props){
   return <div className={cn('grid h-[43px] items-stretch',p.index%2===0?'bg-white':'bg-[#f7f8fb]')} style={{gridTemplateColumns:p.gridColumns}}>
     <div className="flex min-w-0 items-center gap-[5px] overflow-hidden pl-1">
-      <img className="h-[25px] w-6 shrink-0 rounded-[3px] object-cover" src={p.employee.image} alt="" />
       <div className="min-w-0"><p className="truncate text-[10px] leading-[13px]">{p.employee.name}</p><p className="truncate text-[9px] leading-[12px] text-[#989ba3]">{p.employee.title}</p></div>
     </div>
     {p.days.map(day=>{

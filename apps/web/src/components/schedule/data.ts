@@ -32,6 +32,7 @@ export const employees: Employee[] = [
   { id: 'e6', name: 'Новиков Кирилл', title: 'агент · 24 ч', image: '/avatars/6.png' },
   { id: 'e7', name: 'Ерохина Дарья', title: 'агент · 24 ч', image: '/avatars/7.png' },
   { id: 'e8', name: 'Гаврилов Егор', title: 'агент · 24 ч', image: '/avatars/8.png' },
+  { id: 'e9', name: 'Тестов Тест', title: 'агент · 24 ч', image: '/avatars/8.png' },
 ];
 
 export const templates: ShiftTemplate[] = [

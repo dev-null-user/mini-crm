@@ -12,6 +12,7 @@
         "@shift/db": "workspace:*",
         "@shift/shared": "workspace:*",
         "@socket.io/bun-engine": "^0.1.2",
+        "drizzle-orm": "1.0.0-rc.5",
         "hono": "^4.13.19",
         "socket.io": "^4.8.4",
         "zod": "^4.6.7",

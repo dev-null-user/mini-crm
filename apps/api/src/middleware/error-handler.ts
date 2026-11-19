@@ -2,6 +2,7 @@ import type { ErrorHandler, NotFoundHandler } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { ZodError } from 'zod';
+import { ValidationError } from '../errors/validation-error';
 
 type ErrorDefinition = { status: ContentfulStatusCode; message: string };
 
@@ -110,11 +111,23 @@ export const errorHandler: ErrorHandler = (error, c) => {
   let message: string = ERROR_CODES.INTERNAL_ERROR.message;
   let details: unknown;
 
+
   if (error instanceof AppError) {
     code = error.code;
     status = ERROR_CODES[error.code].status;
     message = status >= 500 ? ERROR_CODES[error.code].message : error.message;
     if (status < 500) details = error.details;
+
+  } else if (error instanceof ValidationError) {
+    code = 'VALIDATION_ERROR';
+    status = 400;
+    message = ERROR_CODES.VALIDATION_ERROR.message;
+
+    details = error.issues.map((issue) => ({
+      field: issue.path,
+      code: issue.code,
+      message: issue.message,
+    }));
   } else if (error instanceof ZodError) {
     code = 'VALIDATION_ERROR';
     status = 400;
