@@ -1,7 +1,8 @@
+import { formatMessageHtml } from '@/lib/utils';
 import { redirect } from 'next/navigation';
 
 export default function HomePage() {
   return (
-    <div> Lorem ipsum dolor sit amet consectetur adipisicing elit. Nostrum, ad tempore reiciendis obcaecati numquam ducimus <br></br>itaque atque aperiam sapiente eius, reprehenderit quis iure harum. Adipisci corporis quod iure placeat explicabo?</div>
+    <div className="m-1 p-5" dangerouslySetInnerHTML={{__html: formatMessageHtml(process.env.INFORMATION ?? '')}}></div>
   );
 }

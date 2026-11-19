@@ -1,15 +1,17 @@
 import { Plus } from 'lucide-react';
+import type { DragEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '../../lib/utils';
-import { templates } from './data';
+import type { ShiftTemplate } from './data';
 
-type Props={startTime:string;endTime:string;onStartTime:(v:string)=>void;onEndTime:(v:string)=>void;onApply:(id:string,start:string,end:string)=>void};
+type Props={templates:ShiftTemplate[];loading:boolean;error:boolean;onRetry:()=>void;startTime:string;endTime:string;onStartTime:(v:string)=>void;onEndTime:(v:string)=>void;onApply:(id:string,start:string,end:string)=>void;onDragTemplate:(template:ShiftTemplate,e:DragEvent<HTMLButtonElement>)=>void;onDragEnd:()=>void};
 export function ShiftTemplatesPanel(p:Props){
   return <aside className="min-h-[445px] rounded-[10px] bg-white p-[10px]" aria-label="Шаблоны смен">
     <h2 className="mb-2 text-[11px] font-normal">Шаблоны смен</h2>
     <div className="space-y-1">
-      {templates.map((t,i)=><button type="button" key={t.id} onClick={()=>p.onApply(t.id,t.start,t.end)} title="Применить шаблон к выделенным ячейкам" className={cn('relative flex min-h-[37px] w-full flex-col items-start justify-center gap-[2px] rounded-md border-l-2 bg-[#f1f2f6] py-[5px] pl-2 pr-5 text-left hover:bg-[#e7eaf5]',t.marker)}>
+      {p.loading?<p className="text-xs text-[#858993]">Загрузка шаблонов…</p>:p.error?<p role="alert" className="text-xs text-[#c43b42]">Не удалось загрузить шаблоны. <button type="button" onClick={p.onRetry} className="underline">Повторить</button></p>:p.templates.length===0?<p className="text-xs text-[#858993]">Нет доступных шаблонов.</p>:null}
+      {p.templates.map((t,i)=><button type="button" key={t.id} draggable onDragStart={e=>p.onDragTemplate(t,e)} onDragEnd={p.onDragEnd} onClick={()=>p.onApply(t.id,t.start,t.end)} title="Применить к выделенным ячейкам или перетащить в свободную ячейку" className={cn('relative flex min-h-[37px] w-full cursor-grab flex-col items-start justify-center gap-[2px] rounded-md border-l-2 bg-[#f1f2f6] py-[5px] pl-2 pr-5 text-left hover:bg-[#e7eaf5] active:cursor-grabbing',t.marker)}>
         <span className="text-[10px] font-medium">{t.title}</span><span className="text-[9px] text-[#4b4d56]">{t.start} - {t.end} · {t.hoursLabel}</span><span className="absolute right-[7px] top-[5px] rounded bg-white px-1 text-[9px]">{i+1}</span>
       </button>)}
     </div>

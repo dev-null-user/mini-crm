@@ -4,9 +4,18 @@ import { cn } from '../../lib/utils';
 import type { ViewMode } from '@/lib/schedule-utils';
 
 type Props={
-  selectedCount:number;selectedEmployeesCount:number;selectedDatesCount:number;
-  query:string;onQuery:(s:string)=>void;view:ViewMode;onView:(v:ViewMode)=>void;
-  periodText:string;onPeriod:(n:-1|1)=>void;onApply:()=>void;onClear:()=>void;onUnselect:()=>void;
+  selectedCount:number;
+  selectedEmployeesCount:number;
+  selectedDatesCount:number;
+  query:string;
+  onQuery:(s:string)=>void;
+  view:ViewMode;
+  onView:(v:ViewMode)=>void;
+  periodText:string;
+  onPeriod:(n:-1|1)=>void;
+  onApply:()=>void;
+  onClear:()=>void;
+  onUnselect:()=>void;
 };
 export function ScheduleToolbar(p:Props){
   return <>
@@ -36,4 +45,5 @@ export function ScheduleToolbar(p:Props){
       <button type="button" onClick={()=>p.onPeriod(1)} aria-label="Следующий период"><ChevronRight className="size-3"/></button>
     </div>
   </>;
+
 }

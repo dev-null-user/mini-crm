@@ -1,6 +1,5 @@
 export type ViewMode = 'week' | 'month';
 export type SelectionMode = 'add' | 'remove';
-export const REFERENCE_DATE = new Date(2026, 5, 1);
 export const WEEKDAYS = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
 
 export function startOfWeek(date: Date): Date {
@@ -22,6 +21,11 @@ export function getDays(date: Date, view: ViewMode): Date[] {
   return Array.from({ length: count }, (_,i) => new Date(date.getFullYear(), date.getMonth(), i+1));
 }
 export function shiftKey(employeeId: string, day: string): string { return `${employeeId}|${day}`; }
+export function countShiftsByDate(days:Date[], shifts:Iterable<{date:string}>):number[] {
+  const counts=new Map<string,number>();
+  for(const shift of shifts) counts.set(shift.date,(counts.get(shift.date)??0)+1);
+  return days.map(day=>counts.get(dateKey(day))??0);
+}
 export function labelForTime(s: string): string { return s.replace(':00',''); }
 export function durationHours(start: string, end: string): number {
   const [sh=0,sm=0] = start.split(':').map(Number);

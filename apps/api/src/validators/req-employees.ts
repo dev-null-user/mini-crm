@@ -3,7 +3,7 @@ import { checkValid } from ".";
 
 const ValidReqEmployees = (params: any): any => {
     const zValid = z.object({
-        fullName: z.string().nonempty("Параметр должен указан"),
+        fullName: z.string(),
     });
 
     return checkValid(zValid, {params});
