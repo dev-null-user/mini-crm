@@ -30,7 +30,7 @@ docker compose ps
 При запуске Compose дожидается PostgreSQL и применяет миграции до старта API. Демоданные не добавляются автоматически. Чтобы заполнить пустые справочники сотрудниками и шаблонами из `seed.ts`, выполните:
 
 ```sh
-docker compose --env-file .env run --rm --no-deps migrate bun run db:seed
+docker compose --env-file .env run --rm migrate bun run db:seed
 ```
 
 Повторный запуск команды не создаёт дубликаты. Для диагностики используйте `docker compose logs -f migrate api web proxy`. Данные PostgreSQL сохраняются в томе `postgres_data` при обычной остановке контейнеров.
