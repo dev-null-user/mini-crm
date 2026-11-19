@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { redirect, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Bell, CalendarDays, House, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader,
@@ -30,14 +30,15 @@ export function AppSidebar(){
             {items.map(item=>(
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
-                  onClick={() => {redirect(item.href)}}
-                  render={<Link href={item.href} />}
+                  asChild
                   isActive={pathname===item.href}
                   tooltip={item.title}
                   className="h-8 text-[11px]"
                 >
-                  <item.icon className="size-3.5" />
-                  <span>{item.title}</span>
+                  <Link href={item.href}>
+                    <item.icon className="size-3.5" />
+                    <span>{item.title}</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}

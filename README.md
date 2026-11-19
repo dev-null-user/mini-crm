@@ -10,9 +10,34 @@ Frontend: TypeScript, React, Tailwimd
 
 Backend: Bun, Hono, Zod, WebSocket, Drizze (ORM & kit)
 
+### Запуск через Docker Compose
+
+Если файла `.env` ещё нет, скопируйте пример и задайте свой пароль PostgreSQL в `POSTGRES_PASSWORD`:
+
+```sh
+cp example.env .env
+```
+
+Соберите и запустите сервисы:
+
+```sh
+docker compose --env-file .env up -d --build
+docker compose ps
+```
+
+При использовании файла `.env` в корне проекта флаг `--env-file .env` можно опустить. Если он указан, его нужно ставить перед `up`. Веб-приложение доступно по адресу `http://<адрес-сервера>:3000`; внешний порт задаётся переменной `WEB_PORT`. API и Socket.IO доступны через тот же адрес: Nginx перенаправляет пути `/api/` и `/socket.io/` внутрь сети Compose. Значения `NEXT_PUBLIC_API_URL` и `NEXT_PUBLIC_SOCKET_URL` из `.env` используются при локальном запуске без Docker; в Docker-сборке настроен общий адрес сайта.
+
+При запуске Compose дожидается PostgreSQL и применяет миграции до старта API. Демоданные не добавляются автоматически. Чтобы заполнить пустые справочники сотрудниками и шаблонами из `seed.ts`, выполните:
+
+```sh
+docker compose --env-file .env run --rm --no-deps migrate bun run db:seed
+```
+
+Повторный запуск команды не создаёт дубликаты. Для диагностики используйте `docker compose logs -f migrate api web proxy`. Данные PostgreSQL сохраняются в томе `postgres_data` при обычной остановке контейнеров.
+
 ### График смен
 
-Перед запуском API примените миграции и заполните справочники сотрудников и шаблонов:
+Для локального запуска без Docker примените миграции и при необходимости заполните справочники сотрудников и шаблонов:
 
 ```sh
 bun run --filter @shift/db db:migrate

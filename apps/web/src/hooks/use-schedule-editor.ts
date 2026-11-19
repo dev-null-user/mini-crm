@@ -21,7 +21,7 @@ const palette=[
 ];
 
 async function apiRequest<T>(path:string,options?:RequestInit):Promise<T> {
-  const baseUrl=(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/,'');
+  const baseUrl=(process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001').replace(/\/$/,'');
   const response=await fetch(`${baseUrl}/api/v1${path}`,options);
   if(!response.ok){
     const result=await response.json().catch(()=>null) as {error?:{message?:string}}|null;
@@ -101,8 +101,8 @@ export function useScheduleEditor() {
 
   useEffect(()=>{
     if(!ready)return;
-    const url=process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const socket=io(url);
+    const url=process.env.NEXT_PUBLIC_SOCKET_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+    const socket=io(url || undefined);
     let timer:ReturnType<typeof setTimeout>|undefined;
     const queueRefresh=()=>{if(timer)clearTimeout(timer);timer=setTimeout(requestRefresh,100);};
     socket.on('connect',()=>{setSocketStatus('connected');queueRefresh();});

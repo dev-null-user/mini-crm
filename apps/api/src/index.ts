@@ -25,6 +25,8 @@ const origins = (
 
 const app = new Hono();
 
+app.get('/health', (c) => c.json({ status: 'ok' }));
+
 app.use('/api/*', cors({
   origin: origins,
 }));
