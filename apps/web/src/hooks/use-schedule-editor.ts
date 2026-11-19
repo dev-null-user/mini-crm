@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { io } from 'socket.io-client';
 import { type Employee, type Shift, type ShiftTemplate } from '@/components/schedule/data';
 import { addDays, countShiftsByDate, dateKey, getDays, shiftKey, validTime, type SelectionMode, type ViewMode } from '@/lib/schedule-utils';
 
@@ -60,7 +61,11 @@ export function useScheduleEditor() {
   const [scheduleError,setScheduleError]=useState(false);
   const [reload,setReload]=useState(0);
   const [busy,setBusy]=useState(false);
+  const [socketStatus,setSocketStatus]=useState<'connecting'|'connected'|'disconnected'>('connecting');
   const busyRef=useRef(false);
+  const mutationVersion=useRef(0);
+  const pendingRefresh=useRef(false);
+  const nativeDragActive=useRef(false);
   const [startTime,setStartTime]=useState('09:00');
   const [endTime,setEndTime]=useState('17:00');
   const [notice,setNotice]=useState('');
@@ -74,6 +79,8 @@ export function useScheduleEditor() {
   const days=useMemo(()=>getDays(focusDate,view),[focusDate,view]);
   const firstDay=days[0],lastDay=days[days.length-1];
   const startDate=dateKey(firstDay),endDate=dateKey(lastDay);
+  const periodRef=useRef({startDate,endDate});
+  periodRef.current={startDate,endDate};
   const searching=Boolean(query.trim());
   const filteredEmployees=searching?searchResults:allEmployees;
   const employeesLoading=searching?searchLoading:allEmployeesLoading;
@@ -81,7 +88,32 @@ export function useScheduleEditor() {
   const selectedEmployeesCount=new Set([...selected].map(x=>x.split('|')[0])).size;
   const selectedDatesCount=new Set([...selected].map(x=>x.split('|')[1])).size;
 
+  const requestRefresh=useCallback(()=>{
+    if(busyRef.current||dragActive.current||nativeDragActive.current){pendingRefresh.current=true;return;}
+    pendingRefresh.current=false;
+    setReload(value=>value+1);
+  },[]);
+  const flushRefresh=useCallback(()=>{if(pendingRefresh.current)requestRefresh();},[requestRefresh]);
+  const beginMutation=()=>{busyRef.current=true;mutationVersion.current++;setBusy(true);};
+  const finishMutation=()=>{busyRef.current=false;setBusy(false);flushRefresh();};
+
   useEffect(()=>{setReady(true);},[]);
+
+  useEffect(()=>{
+    if(!ready)return;
+    const url=process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const socket=io(url);
+    let timer:ReturnType<typeof setTimeout>|undefined;
+    const queueRefresh=()=>{if(timer)clearTimeout(timer);timer=setTimeout(requestRefresh,100);};
+    socket.on('connect',()=>{setSocketStatus('connected');queueRefresh();});
+    socket.on('disconnect',()=>setSocketStatus('disconnected'));
+    socket.on('connect_error',()=>setSocketStatus('disconnected'));
+    socket.on('schedule:updated',(change:{startDate?:string;endDate?:string})=>{
+      const period=periodRef.current;
+      if(!change||typeof change.startDate!=='string'||typeof change.endDate!=='string'||(change.startDate<=period.endDate&&change.endDate>=period.startDate))queueRefresh();
+    });
+    return ()=>{if(timer)clearTimeout(timer);socket.disconnect();};
+  },[ready,requestRefresh]);
 
   useEffect(()=>{
     const controller=new AbortController();
@@ -133,24 +165,28 @@ export function useScheduleEditor() {
 
   useEffect(()=>{
     if(!ready)return;
+    if(busyRef.current||dragActive.current||nativeDragActive.current){pendingRefresh.current=true;setScheduleLoading(false);return;}
     const controller=new AbortController();
-    setScheduleLoading(true);setScheduleError(false);setShifts({});setPublished(false);
+    const version=mutationVersion.current;
+    setScheduleLoading(true);setScheduleError(false);
     const params=new URLSearchParams({startDate,endDate});
     apiRequest<ApiSchedule>(`/schedules?${params}`,{signal:controller.signal}).then(data=>{
       if(controller.signal.aborted)return;
+      if(busyRef.current||version!==mutationVersion.current){setScheduleLoading(false);pendingRefresh.current=true;flushRefresh();return;}
       setShifts(scheduleShifts(data.shifts));
       setPublished(data.published);setScheduleLoading(false);
-    }).catch(()=>{if(!controller.signal.aborted){setScheduleError(true);setScheduleLoading(false);}});
+    }).catch(()=>{if(!controller.signal.aborted){if(busyRef.current||version!==mutationVersion.current){setScheduleLoading(false);pendingRefresh.current=true;flushRefresh();return;}setScheduleError(true);setScheduleLoading(false);}});
     return ()=>controller.abort();
-  },[startDate,endDate,reload,ready]);
+  },[startDate,endDate,reload,ready,flushRefresh]);
 
   useEffect(()=>{
-    const finish=()=>{dragActive.current=false;};
+    const finish=()=>{dragActive.current=false;flushRefresh();};
+    const cancel=()=>{dragActive.current=false;nativeDragActive.current=false;flushRefresh();};
     window.addEventListener('pointerup',finish);
     window.addEventListener('pointercancel',finish);
-    window.addEventListener('blur',finish);
-    return ()=>{ window.removeEventListener('pointerup',finish); window.removeEventListener('pointercancel',finish); window.removeEventListener('blur',finish); };
-  },[]);
+    window.addEventListener('blur',cancel);
+    return ()=>{ window.removeEventListener('pointerup',finish); window.removeEventListener('pointercancel',finish); window.removeEventListener('blur',cancel); };
+  },[flushRefresh]);
 
   const setCellSelection=useCallback((key:string,mode:SelectionMode)=>{
     setSelected(prev=>{const next=new Set(prev); mode==='add'?next.add(key):next.delete(key); return next;});
@@ -166,7 +202,9 @@ export function useScheduleEditor() {
     setCellSelection(key,dragMode.current);
   };
   const hoverSelection=(key:string)=>{if(dragActive.current){if(key!==dragStart.current) didDrag.current=true;setCellSelection(key,dragMode.current);}};
-  const startShiftDrag=()=>{dragActive.current=false;didDrag.current=true;setSelected(selectionBeforeDrag.current);};
+  const startShiftDrag=()=>{nativeDragActive.current=true;dragActive.current=false;didDrag.current=true;setSelected(selectionBeforeDrag.current);};
+  const startTemplateDrag=()=>{nativeDragActive.current=true;};
+  const finishDrag=()=>{nativeDragActive.current=false;flushRefresh();};
   const shouldOpenCell=(key:string,keyboard:boolean)=>{
     if(keyboard){setCellSelection(key,selected.has(key)?'remove':'add');return true;}
     return !didDrag.current;
@@ -182,7 +220,7 @@ export function useScheduleEditor() {
     if(!keys.length){setNotice('Сначала выделите одну или несколько ячеек календаря.');return false;}
     if(!validTime(start)||!validTime(end)||start===end){setNotice('Проверьте время смены.');return false;}
     if(busyRef.current)return false;
-    busyRef.current=true;setBusy(true);
+    beginMutation();
     try {
       const assignments=keys.map(key=>{const [employeeId,date]=key.split('|');return {employeeId,date,templateId:templateId==='custom'?null:templateId,startTime:start,endTime:end,onlyIfEmpty};});
       await apiRequest('/schedules/shifts',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignments,removals:[]})});
@@ -191,7 +229,7 @@ export function useScheduleEditor() {
       setSelected(prev=>{const next=new Set(prev);for(const key of keys)next.delete(key);return next;});
       return true;
     } catch(error){setNotice(error instanceof Error?error.message:'Не удалось сохранить смены.');return false;}
-    finally {busyRef.current=false;setBusy(false);}
+    finally {finishMutation();}
   };
   const applyShift=(templateId:string,start:string,end:string)=>applyToCells([...selected],templateId,start,end);
   const moveShift=async(sourceKey:string,targetKey:string)=>{
@@ -200,7 +238,7 @@ export function useScheduleEditor() {
     if(!shift){setNotice('Исходная смена не найдена.');return;}
     if(shifts[targetKey]){setNotice('В выбранной ячейке уже есть смена.');return;}
     const [employeeId,date]=targetKey.split('|');
-    busyRef.current=true;setBusy(true);
+    beginMutation();
     try {
       await apiRequest('/schedules/shifts',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({
         assignments:[{employeeId,date,templateId:shift.templateId==='custom'?null:shift.templateId,startTime:shift.start,endTime:shift.end,onlyIfEmpty:true}],
@@ -210,11 +248,11 @@ export function useScheduleEditor() {
       setSelected(prev=>{const next=new Set(prev);next.delete(sourceKey);next.delete(targetKey);return next;});
       setPublished(false);setNotice('Смена перенесена.');
     } catch(error){setNotice(error instanceof Error?error.message:'Не удалось перенести смену.');}
-    finally {busyRef.current=false;setBusy(false);}
+    finally {finishMutation();}
   };
   const clearCells=async(keys:string[]):Promise<boolean>=>{
     if(!keys.length||busyRef.current)return false;
-    busyRef.current=true;setBusy(true);
+    beginMutation();
     try {
       const removals=keys.map(key=>{const [employeeId,date]=key.split('|');return {employeeId,date};});
       const result=await apiRequest<{updated:number}>('/schedules/shifts',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignments:[],removals})});
@@ -222,12 +260,12 @@ export function useScheduleEditor() {
       setSelected(prev=>{const next=new Set(prev);for(const key of keys)next.delete(key);return next;});
       if(result.updated)setPublished(false);setNotice('Выбранные смены очищены.');return true;
     } catch(error){setNotice(error instanceof Error?error.message:'Не удалось удалить смены.');return false;}
-    finally {busyRef.current=false;setBusy(false);}
+    finally {finishMutation();}
   };
   const clearSelected=()=>clearCells([...selected]);
   const save=async(publish=false)=>{
     if(busyRef.current)return;
-    busyRef.current=true;setBusy(true);
+    beginMutation();
     try {
       if(publish){await apiRequest('/schedules/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({startDate,endDate})});setPublished(true);setNotice('График опубликован.');}
       else {
@@ -237,7 +275,7 @@ export function useScheduleEditor() {
         setNotice('График сохранён на сервере.');
       }
     } catch(error){setNotice(error instanceof Error?error.message:'Не удалось сохранить график.');}
-    finally {busyRef.current=false;setBusy(false);}
+    finally {finishMutation();}
   };
 
   const monthLabel=(d:Date)=>new Intl.DateTimeFormat('ru-RU',{month:'long'}).format(d);
@@ -249,8 +287,8 @@ export function useScheduleEditor() {
   return {
     ready,view,days,query,setQuery,selected,shifts,startTime,setStartTime,endTime,setEndTime,
     notice,setNotice,hasChanges:false,published,filteredEmployees,employeesLoading,employeesError,selectedEmployeesCount,selectedDatesCount,
-    templates,templatesLoading,templatesError,retryTemplates:()=>setTemplatesReload(value=>value+1),scheduleLoading,scheduleError,busy,retrySchedule:()=>setReload(value=>value+1),
-    beginSelection,hoverSelection,startShiftDrag,shouldOpenCell,changePeriod,setViewMode,reset,applyShift,applyToCells,moveShift,clearCells,
+    templates,templatesLoading,templatesError,retryTemplates:()=>setTemplatesReload(value=>value+1),scheduleLoading,scheduleError,busy,socketStatus,retrySchedule:()=>setReload(value=>value+1),
+    beginSelection,hoverSelection,startShiftDrag,startTemplateDrag,finishDrag,shouldOpenCell,changePeriod,setViewMode,reset,applyShift,applyToCells,moveShift,clearCells,
     clearSelected,clearSelection:()=>setSelected(new Set()),save,
     periodText,gridColumns,minGridWidth,coverage:scheduleLoading||scheduleError?null:coverage,
   };

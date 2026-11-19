@@ -5,7 +5,7 @@ import { db, schedules, shifts, shiftTemplates } from '@shift/db';
 import { AppError, errorHandler } from '../middleware/error-handler';
 import { periodSchema, updateShiftsSchema } from '../validators/req-schedule';
 
-type ScheduleChanged = (scheduleId: string, kind: string) => void;
+export type ScheduleChanged = (change: {startDate:string;endDate:string;kind:'shifts'|'published'}) => void;
 
 async function parseJson(request: Request): Promise<unknown> {
   try { return await request.json(); }
@@ -103,7 +103,10 @@ export function createSchedulesRoute(onChanged: ScheduleChanged, database: typeo
       if (touched.size) await tx.update(schedules).set({ status: 'draft', publishedAt: null, updatedAt: new Date(), version: sql`${schedules.version} + 1` }).where(inArray(schedules.id, [...touched]));
       return [...touched];
     });
-    changedIds.forEach(id => onChanged(id, 'shifts'));
+    if (changedIds.length) {
+      const dates = [...assignments, ...removals].map(cell => cell.date).sort();
+      onChanged({ startDate: dates[0], endDate: dates[dates.length - 1], kind: 'shifts' });
+    }
     return c.json({ data: { updated: changedIds.length } });
   });
 
@@ -120,7 +123,7 @@ export function createSchedulesRoute(onChanged: ScheduleChanged, database: typeo
         .where(and(gte(schedules.startDate, startDate), lte(schedules.endDate, endDate))).returning({ id: schedules.id });
       return updated.map(item => item.id);
     });
-    changedIds.forEach(id => onChanged(id, 'published'));
+    if (changedIds.length) onChanged({ startDate, endDate, kind: 'published' });
     return c.json({ data: { published: true } });
   });
 

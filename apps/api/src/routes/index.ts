@@ -3,11 +3,7 @@ import { Hono } from 'hono';
 
 import { registerRoutes } from './router';
 import { createRoutesConfig } from './router.config';
-
-type ScheduleChanged = (
-  scheduleId: string,
-  kind: string
-) => void;
+import type { ScheduleChanged } from '../controllers/schedules';
 
 export function createApiRoutes(
   onChanged: ScheduleChanged

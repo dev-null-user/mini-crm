@@ -19,6 +19,7 @@ type Props={
   templatesLoading:boolean;
   templatesError:boolean;
   busy:boolean;
+  scheduleUnavailable:boolean;
   selectedCount:number;
   onApply:(keys:string[]|null,templateId:string,start:string,end:string)=>Promise<boolean>;
   onClear:(keys:string[])=>Promise<boolean>;
@@ -54,12 +55,13 @@ export function ShiftPicker(p:Props){
   const dateLabel=date?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(new Date(`${date}T12:00:00`)):'';
 
   return <dialog ref={dialogRef} onCancel={e=>{if(p.busy)e.preventDefault();}} onClose={p.onClose} aria-labelledby="shift-picker-title" className="m-auto w-[min(360px,calc(100%-32px))] rounded-xl border-0 bg-white p-4 text-[#25252c] shadow-xl backdrop:bg-black/35">
-    <fieldset disabled={p.busy}>
     <div className="flex items-start justify-between gap-3">
       <div><h2 id="shift-picker-title" className="text-sm font-medium">{shift?'Изменить смену':'Назначить смену'}</h2>
         <p className="mt-1 text-xs text-[#858993]">{p.target.kind==='selection'?`Выбрано ячеек: ${p.selectedCount}`:dateLabel}</p></div>
-      <button type="button" onClick={p.onClose} aria-label="Закрыть" className="rounded p-1 hover:bg-[#f1f2f6]"><X className="size-4"/></button>
+      <button type="button" disabled={p.busy} onClick={p.onClose} aria-label="Закрыть" className="rounded p-1 hover:bg-[#f1f2f6]"><X className="size-4"/></button>
     </div>
+    {p.scheduleUnavailable&&<p role="status" className="mt-2 text-xs text-[#858993]">Обновление графика. При ошибке закройте окно и повторите загрузку.</p>}
+    <fieldset disabled={p.busy||p.scheduleUnavailable}>
     {p.target.kind==='date'?<label className="mt-4 block text-xs">Сотрудник
       <select value={employeeId} onChange={e=>chooseEmployee(e.target.value)} className="mt-1 h-9 w-full rounded-md border border-[#e2e4e9] bg-white px-2 text-xs">
         <option value="">Выберите сотрудника</option>

@@ -1,13 +1,12 @@
 import { Server as BunEngine } from '@socket.io/bun-engine';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { HTTPException } from 'hono/http-exception';
 import { Server as SocketServer } from 'socket.io';
-import { z } from 'zod';
 
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 
 import { createApiRoutes } from './routes';
+import type { ScheduleChanged } from './controllers/schedules';
 
 const hostname = process.env.API_HOST ?? '0.0.0.0';
 
@@ -41,15 +40,11 @@ const engine = new BunEngine({
 
 io.bind(engine);
 
-const onScheduleChanged = (
-  scheduleId: string,
-  kind: string
-) => {
-  io.to(`schedule:${scheduleId}`).emit(
+const onScheduleChanged: ScheduleChanged = (change) => {
+  io.emit(
     'schedule:updated',
     {
-      scheduleId,
-      kind,
+      ...change,
       timestamp: new Date().toISOString(),
     }
   );
@@ -66,21 +61,6 @@ io.on('connection', (socket) => {
 
   io.emit('demo:users', io.of('/').sockets.size);
 
-  socket.on('schedule:join', (scheduleId: unknown) => {
-    const result = z.uuid().safeParse(scheduleId);
-
-    if (result.success) {
-      socket.join(`schedule:${result.data}`);
-    }
-  });
-
-  socket.on('schedule:leave', (scheduleId: unknown) => {
-    const result = z.uuid().safeParse(scheduleId);
-
-    if (result.success) {
-      socket.leave(`schedule:${result.data}`);
-    }
-  });
 });
 
 const { websocket } = engine.handler();

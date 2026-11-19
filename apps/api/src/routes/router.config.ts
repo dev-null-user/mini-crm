@@ -1,9 +1,9 @@
 
 import { employeesRoute } from '../controllers/employees';
-import { createSchedulesRoute } from '../controllers/schedules';
+import { createSchedulesRoute, type ScheduleChanged } from '../controllers/schedules';
 import type { RouteGroup } from './router';
 
-export function createRoutesConfig(onChanged: (scheduleId: string, kind: string) => void): RouteGroup {
+export function createRoutesConfig(onChanged: ScheduleChanged): RouteGroup {
     return {
         path: '/v1',
         groups: {
